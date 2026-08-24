@@ -17,6 +17,12 @@ export function reflectionRemediation(reason: string | undefined, detail: string
   ) {
     return "the reflection child cannot see the configured category model; adjust memory.reflection category/model in your omo config"
   }
+  // A provider 400 on reasoning.effort is a config/capability mismatch, not a crash:
+  // the child-stderr hint below would send the reader to a log that only repeats the
+  // same line. Name the rejected parameter instead.
+  if (combined.includes("unsupported_value") || combined.includes("reasoning.effort")) {
+    return "the provider rejected the reasoning effort for this model; set memory.reflection reasoningEffort to a value the model accepts, or pick another category model"
+  }
   if (combined.includes("spawn") || combined.includes("enoent")) {
     return "senpi executable not resolvable for the reflection child; set SENPI_BIN"
   }

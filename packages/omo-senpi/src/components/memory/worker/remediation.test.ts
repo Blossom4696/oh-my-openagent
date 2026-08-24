@@ -20,6 +20,23 @@ describe("reflectionRemediation", () => {
     })
   })
 
+  describe("#given a provider 400 rejecting reasoning.effort", () => {
+    // Verbatim stderr from three consecutive real reflection runs against gpt-5.6-luna.
+    // It matched no taxonomy, so a pure capability mismatch was reported with the generic
+    // "inspect child-stderr.log" hint - and that log contains only this same line.
+    test("#when remediated #then it names the rejected parameter instead of the child log", () => {
+      // when
+      const hint = reflectionRemediation(
+        "child_exit",
+        'OpenAI API error (400): {"message":"Unsupported value: \'minimal\' is not supported with the \'gpt-5.6-luna\' model. Supported values are: \'none\', \'low\', \'medium\', \'high\', \'xhigh\', and \'max\'.","type":"invalid_request_error","param":"reasoning.effort","code":"unsupported_value"}',
+      )
+
+      // then
+      expect(hint).toContain("reasoning effort")
+      expect(hint).not.toContain("child-stderr.log")
+    })
+  })
+
   describe("#given the senpi child's verbatim model-not-found error", () => {
     // The child prints: Error: Model "<selector>" not found. Use --list-models to see available models.
     // That wording matched no taxonomy, so a repeating model miss was reported with the generic
