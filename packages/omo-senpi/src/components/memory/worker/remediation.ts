@@ -20,7 +20,13 @@ export function reflectionRemediation(reason: string | undefined, detail: string
   // A provider 400 on reasoning.effort is a config/capability mismatch, not a crash:
   // the child-stderr hint below would send the reader to a log that only repeats the
   // same line. Name the rejected parameter instead.
-  if (combined.includes("unsupported_value") || combined.includes("reasoning.effort")) {
+  // Scope this to the reasoning parameter only. An unsupported_value for temperature,
+  // max_tokens or anything else must not be told to change the reasoning level.
+  if (
+    combined.includes("reasoning.effort")
+    || combined.includes("reasoningeffort")
+    || (combined.includes("unsupported_value") && combined.includes("reasoning"))
+  ) {
     return "the provider rejected the reasoning effort for this model; set categories.<category>.reasoning (the category memory.reflection.category points at) to a value the model accepts, or pick another model"
   }
   if (combined.includes("spawn") || combined.includes("enoent")) {

@@ -37,6 +37,22 @@ describe("reflectionRemediation", () => {
     })
   })
 
+  describe("#given an unsupported_value for a parameter other than reasoning", () => {
+    // The reasoning hint must not be handed out for every unsupported_value: a
+    // temperature or max_tokens rejection needs the generic child-log path instead.
+    test("#when remediated #then it does not recommend changing the reasoning level", () => {
+      // when
+      const hint = reflectionRemediation(
+        "child_exit",
+        'OpenAI API error (400): {"message":"Unsupported value: 0.9 is not supported with this model.","param":"temperature","code":"unsupported_value"}',
+      )
+
+      // then
+      expect(hint).not.toContain("reasoning")
+      expect(hint).toContain("child-stderr.log")
+    })
+  })
+
   describe("#given the senpi child's verbatim model-not-found error", () => {
     // The child prints: Error: Model "<selector>" not found. Use --list-models to see available models.
     // That wording matched no taxonomy, so a repeating model miss was reported with the generic
