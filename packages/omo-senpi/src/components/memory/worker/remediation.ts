@@ -21,7 +21,7 @@ export function reflectionRemediation(reason: string | undefined, detail: string
   // the child-stderr hint below would send the reader to a log that only repeats the
   // same line. Name the rejected parameter instead.
   if (combined.includes("unsupported_value") || combined.includes("reasoning.effort")) {
-    return "the provider rejected the reasoning effort for this model; set memory.reflection reasoningEffort to a value the model accepts, or pick another category model"
+    return "the provider rejected the reasoning effort for this model; set categories.<category>.reasoning (the category memory.reflection.category points at) to a value the model accepts, or pick another model"
   }
   if (combined.includes("spawn") || combined.includes("enoent")) {
     return "senpi executable not resolvable for the reflection child; set SENPI_BIN"

@@ -340,6 +340,21 @@ describe("resolveCompatibleModelSettings", () => {
 
   // The narrower gpt-5.6+ entry must not swallow the earlier gpt-5 models, which
   // still accept "minimal".
+  // A provider that publishes its own effort list is authoritative. github-copilot
+  // still accepts minimal for gpt-5.6, so the gpt-5-6-plus minimal->none alias must
+  // not downgrade it. Without the metadata check the alias fired first and returned
+  // "none" here, silently weakening a level that provider accepts.
+  test("explicit provider capabilities outrank the family alias", () => {
+    const result = resolveCompatibleModelSettings({
+      providerID: "github-copilot",
+      modelID: "gpt-5.6",
+      desired: { reasoningEffort: "minimal" },
+      capabilities: { reasoningEfforts: ["none", "minimal", "low", "medium", "high"] },
+    })
+
+    expect(result.reasoningEffort).toBe("minimal")
+  })
+
   test("GPT-5 and GPT-5.1 keep minimal reasoningEffort", () => {
     for (const modelID of ["gpt-5", "gpt-5.1", "gpt-5.2-codex"]) {
       const result = resolveCompatibleModelSettings({

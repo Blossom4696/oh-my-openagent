@@ -5,7 +5,7 @@ import {
   type SenpiModelRegistryPort,
 } from "@oh-my-opencode/senpi-task"
 
-import { resolveCompatibleModelSettings } from "@oh-my-opencode/model-core"
+import { getModelCapabilities, resolveCompatibleModelSettings } from "@oh-my-opencode/model-core"
 
 import { chooseReflectionLaunchModel, type ReflectionLaunchCandidate } from "./model-cost"
 import { readModelPricing, selectRegistryFallbackModels } from "./registry-fallback"
@@ -268,10 +268,15 @@ function clampThinkingToModel(
   const modelID = model.slice(separator + 1)
   if (modelID.length === 0) return thinking
 
+  // Provider overrides are authoritative and must reach the resolver: github-copilot
+  // publishes its own effort list for gpt-5.6, and without this the generic family
+  // alias would downgrade a level that provider actually accepts.
+  const capabilities = getModelCapabilities({ providerID, modelID })
   const resolved = resolveCompatibleModelSettings({
     providerID,
     modelID,
     desired: { reasoningEffort: thinking === "off" ? "none" : thinking },
+    capabilities,
   })
   // An unknown family yields no effort at all; keep the caller's choice rather than
   // silently dropping thinking for every model model-core does not recognise.
