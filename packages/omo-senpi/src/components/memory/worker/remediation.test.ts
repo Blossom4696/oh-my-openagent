@@ -56,5 +56,15 @@ describe("reflectionRemediation", () => {
     test("#when nothing matches #then the child log hint remains the default for post-spawn failures", () => {
       expect(reflectionRemediation("child_exit", "exit code 1")).toContain("child-stderr.log")
     })
+
+    // The run dir is `runtime/reflection/runs/<runId>` (reflection-spawn-input.ts builds it from
+    // `paths.reflection` + "runs"). The hint used to name `runtime/reflection-sessions/<runId>`,
+    // a vestigial layout entry nothing ever writes to, sending readers to a nonexistent file.
+    test("#when the default child-log hint is emitted #then it names the directory the run actually writes", () => {
+      const hint = reflectionRemediation("child_exit", "exit code 1")
+
+      expect(hint).toBe("inspect runtime/reflection/runs/<runId>/child-stderr.log")
+      expect(hint).not.toContain("reflection-sessions")
+    })
   })
 })

@@ -23,5 +23,8 @@ export function reflectionRemediation(reason: string | undefined, detail: string
   if (combined.includes("api key") || combined.includes("auth_missing")) {
     return "run /login <provider>"
   }
-  return "inspect runtime/reflection-sessions/<runId>/child-stderr.log"
+  // The run dir is `runtime/reflection/runs/<runId>` (reflection-spawn-input.ts builds
+  // `reflectionSessionsDir` from `paths.reflection` + "runs"), so the hint must name that
+  // path -- `runtime/reflection-sessions/` is a vestigial layout entry nothing writes to.
+  return "inspect runtime/reflection/runs/<runId>/child-stderr.log"
 }
