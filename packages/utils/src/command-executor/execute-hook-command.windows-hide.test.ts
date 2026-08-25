@@ -1,5 +1,5 @@
 import { PassThrough } from "node:stream"
-import { mock, describe, expect, test } from "bun:test"
+import { afterAll, mock, describe, expect, test } from "bun:test"
 
 const spawnCalls: Array<{ options?: { windowsHide?: boolean } }> = []
 
@@ -20,6 +20,8 @@ mock.module("node:child_process", () => ({
     return proc
   },
 }))
+
+afterAll(() => { mock.restore() })
 
 const { executeHookCommand } = await import("./execute-hook-command")
 
