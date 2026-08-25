@@ -59,6 +59,8 @@ export type DagSchedulerOptions = {
   readonly ancestry?: { readonly depth: number }
   readonly subscriberRing?: number
   readonly nodeSpawnPolicy?: DagNodeSpawnPolicy
+  /** Tasks that survived a scheduler restart and remain owned by the task manager. */
+  readonly reattachedTasks?: readonly { readonly nodeId: DagNodeId; readonly taskId: string }[]
   // Skill materialization for a retry that carries a prompt override (it re-runs the amend path).
   readonly materializeSkills?: DagMaterializeSkills
   // Lease identity for the control verbs: a run leased by a DIFFERENT live process is not ours to
@@ -219,6 +221,12 @@ export function createDagScheduler(options: DagSchedulerOptions): DagScheduler {
         ? watchRevivedInScheduler(context, revivedNodeId, taskId)
         : undefined,
     ),
+  }
+  for (const reattached of options.reattachedTasks ?? []) {
+    const node = nodeById(journal.snapshot(), reattached.nodeId)
+    if (TERMINAL_NODE_STATES.has(node.state)) continue
+    context.attachedTaskIds.set(reattached.nodeId, reattached.taskId)
+    attachTaskSettlement(context, reattached.nodeId, reattached.taskId)
   }
   for (const observer of schedulerObservers.get(options.taskManager) ?? []) observer(scheduler)
   return scheduler
@@ -444,6 +452,11 @@ async function runWaves(context: SchedulerContext): Promise<DagRunRecordV1> {
       context.journal.append(dagWaveStartedEvent({ waveIndex: wave.index, nodeIds: runnable }))
       if (!await admitAndSettleWave(context, runnable)) return cancelledSnapshot(context)
       context.journal.append(dagWaveCompletedEvent({ waveIndex: wave.index, nodeIds: runnable }))
+      // Reattached tasks belong to the already-open wave. They are externally owned, but the
+      // strict barrier still waits for them before advancing to a later wave.
+      while (context.attachedTasks.size > 0) {
+        if (!await settleOne(context)) return cancelledSnapshot(context)
+      }
     }
 
     applyDependentSkipCascade(context)

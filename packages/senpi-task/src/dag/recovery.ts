@@ -149,7 +149,7 @@ async function resumeClaimedRun(context: RecoveryContext, claimed: RecoverableRe
   const journal = recoveryJournal(context, claimed, pendingErrors, pendingTerminalResults)
   const reusedOutputs = new Map<DagNodeId, string>()
   try {
-    await reconcileNodes(context, journal, reusedOutputs, pendingErrors, pendingTerminalResults)
+    const reattachedTasks = await reconcileNodes(context, journal, reusedOutputs, pendingErrors, pendingTerminalResults)
     const generation = journal.snapshot().generation + 1
     journal.append(dagRunResumedEvent({ generation }))
     const scheduler = createDagScheduler({
@@ -158,6 +158,7 @@ async function resumeClaimedRun(context: RecoveryContext, claimed: RecoverableRe
       initialRecord: journal.snapshot(),
       ...(context.subscriberRing === undefined ? {} : { subscriberRing: context.subscriberRing }),
       ...(context.nodeSpawnPolicy === undefined ? {} : { nodeSpawnPolicy: context.nodeSpawnPolicy }),
+      ...(reattachedTasks.length === 0 ? {} : { reattachedTasks }),
       now: context.now,
     })
     const record = await scheduler.run()
@@ -173,7 +174,8 @@ async function reconcileNodes(
   reusedOutputs: Map<DagNodeId, string>,
   pendingErrors: Map<DagNodeId, DagNodeError>,
   pendingTerminalResults: Map<DagNodeId, RecoveryPendingTerminalResult>,
-): Promise<void> {
+): Promise<readonly { readonly nodeId: DagNodeId; readonly taskId: string }[]> {
+  const reattachedTasks: { readonly nodeId: DagNodeId; readonly taskId: string }[] = []
   for (const observed of journal.snapshot().nodes) {
     if (observed.state === "completed") {
       const result = readDagNodeResult({ store: context.store, runId: journal.snapshot().runId, nodeId: observed.id })
@@ -238,10 +240,12 @@ async function reconcileNodes(
 
     if (task.status === "pending" || task.status === "running") {
       context.reattach?.(journal.snapshot().runId, task.task_id)
-      task = await context.taskManager.waitFor(task.task_id)
+      reattachedTasks.push({ nodeId: observed.id, taskId: task.task_id })
+      continue
     }
     foldTaskOutcome(context, journal, observed.id, task, pendingErrors, pendingTerminalResults)
   }
+  return reattachedTasks
 }
 
 function attachStartedOrFail(

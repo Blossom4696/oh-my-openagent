@@ -236,6 +236,46 @@ describe("DAG crash recovery", () => {
     expect(events(store).some((event) => event.type === "dag.run.resumed")).toBe(true)
   })
 
+  test("R1: resume emits dag.run.resumed and reuses completed nodes while a reattached child is still running", async () => {
+    const projectDir = tempProject()
+    const store = createDagFileStore({ project_dir: projectDir })
+    const manager = new RecoveryTaskManager()
+    const observedEvents = deferred<void>()
+    const seenTypes = new Set<string>()
+    const observedStore = {
+      ...store,
+      appendEvent(event: DagRunEvent) {
+        store.appendEvent(event)
+        seenTypes.add(event.type)
+        if (seenTypes.has("dag.node.reused") && seenTypes.has("dag.run.resumed")) observedEvents.resolve()
+      },
+    }
+    const input = definition([node("running"), node("done"), node("next", ["done"])])
+    store.writeCheckpoint(runId, recoverableRecord(input, {
+      running: { state: "running", taskId: "task-running", attempt: 1 },
+      done: { state: "completed", taskId: "task-done", attempt: 1 },
+      next: { state: "pending" },
+    }, { previousLeaseHolderPid: 9001 }))
+    store.writeResult(runId, "done", "durable done output")
+    manager.add(taskRecord(owner("running"), "running", "task-running"))
+
+    const resume = createDagRecovery({
+      store: observedStore,
+      taskManager: manager,
+      hostPid: 101,
+      isProcessAlive: () => false,
+    }).resumePausedRuns(parentSessionId)
+    await observedEvents.promise
+
+    expect(seenTypes).toContain("dag.node.reused")
+    expect(seenTypes).toContain("dag.run.resumed")
+    expect(manager.startOwnedCalls).toContain("next")
+    expect(manager.startOwnedCalls).not.toContain("running")
+
+    manager.complete("task-running")
+    await resume
+  }, 10_000)
+
   test("#given no injected liveness probe #when a paused run's previous holder is this live process #then the default probe skips it as a live lease", async () => {
     // given - the default probe is the lifecycle port's signal-0 existence check, so THIS pid reads alive
     const projectDir = tempProject()

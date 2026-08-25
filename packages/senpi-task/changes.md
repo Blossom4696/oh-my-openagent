@@ -1,3 +1,9 @@
+## 2026-08-25 — Resume DAG runs without waiting for surviving children
+
+DAG recovery now marks a claimed run resumed after non-blocking reconciliation work and watches surviving pending/running child tasks through the new scheduler instance. Their terminal outcomes are folded asynchronously, so durable result reuse and operator controls remain live while a reattached child continues executing.
+
+Keep surviving task owners externally owned during scheduler re-entry; never dispatch them a second time or revive the prior scheduler instance.
+
 ## 2026-08-20 — Export the canonical notice-box visual contract
 
 The package now exports one `buildNoticeBox` helper and `NoticeSpec`-shaped types for Senpi-coupled adapters. It reproduces Senpi's canonical `Box(1, 1, customMessageBg)` contract while the pinned host package does not export its own builder.
