@@ -49,7 +49,7 @@ export interface MemoryIdentityRuntime {
   readonly store: ReflectionReservationStore
   readonly reservationPort: ReflectionReservationPort
   readonly runner: SenpiSubprocessRunner
-  launch(run: ReservedRun): Promise<void>
+  launch(run: ReservedRun): void
   reconcile(): Promise<void>
 }
 
@@ -131,15 +131,18 @@ export function createIdentityRuntime(
     runtimeDirsReady ??= ensureIdentityRuntimeDirs(identity.identityPaths)
     return runtimeDirsReady
   }
-  const launch = (run: ReservedRun): Promise<void> =>
+  const launchAsync = (run: ReservedRun): Promise<void> =>
     ensureRuntimeDirsOnce()
       .then(() => runner.launch(run))
       .then((result) => {
-        if (result.launch !== undefined) void launch(result.launch)
+        if (result.launch !== undefined) void launchAsync(result.launch)
       })
       .catch((error: unknown) => {
         deps.logger?.warn("memory reflection launch failed", { error: describe(error) })
       })
+  const launch = (run: ReservedRun): void => {
+    void launchAsync(run)
+  }
   const runtime: MemoryIdentityRuntime = {
     identity,
     store,

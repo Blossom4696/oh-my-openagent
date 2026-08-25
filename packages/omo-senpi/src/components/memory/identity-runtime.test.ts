@@ -15,6 +15,15 @@ import type { ReflectionSandbox, ReflectionSpawnArgs } from "./worker"
 const roots: string[] = []
 afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))))
 
+async function waitForPath(path: string, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (existsSync(path)) return
+    await new Promise<void>((resolve) => setTimeout(resolve, 20))
+  }
+  throw new Error(`timed out waiting for ${path}`)
+}
+
 describe("memory identity runtime", () => {
   test.skipIf(process.platform !== "darwin" && process.platform !== "linux")(
     "#given an unresolved reflection child command #when the real lazy sandbox is constructed #then the unsandboxed escape reaches the injected logger",
@@ -230,9 +239,10 @@ describe("memory identity runtime first-write seam", () => {
     if (reserved.status !== "active") throw new Error("expected an active manual reservation")
 
     // when
-    await runtime.launch(reserved.run)
+    runtime.launch(reserved.run)
 
-    // then
+    // then: launch is fire-and-forget; assert side effects, not the return
+    await waitForPath(paths.reflectionSessions, 5000)
     expect(existsSync(paths.reflectionSessions)).toBe(true)
   }, 30_000)
 })
