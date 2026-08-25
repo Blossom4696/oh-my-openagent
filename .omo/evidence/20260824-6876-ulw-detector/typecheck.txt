@@ -1,0 +1,3 @@
+$ bun run --cwd packages/omo-opencode typecheck
+$ tsgo --noEmit -p tsconfig.json
+EXIT: 0
